@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"testtask/entity"
+	"time"
 )
 
 type RobotService interface {
@@ -66,12 +68,19 @@ func (h *RobotHandler) RobotsCreatedThisWeek(w http.ResponseWriter, r *http.Requ
 
 func handleCSV(ctx context.Context, w http.ResponseWriter, counts map[string]map[string]int64) {
 	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", "attachment; filename=weekly report.csv")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=weekly report %s.csv", time.Now().Format("2006-01-02")))
 
 	csvWriter := csv.NewWriter(w)
 
 	data := generateCSVData(counts)
+
+	if err := csvWriter.Write([]string{"Model", "Version", "Week Quantity"}); err != nil {
+		sendError(ctx, w, err)
+		return
+	}
+
 	for _, record := range data {
+		fmt.Println(record)
 		if err := csvWriter.Write(record); err != nil {
 			sendError(ctx, w, err)
 			return
