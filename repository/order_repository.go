@@ -14,21 +14,10 @@ func NewOrderRepository(db *sql.DB) *OrderRepository {
 	return &OrderRepository{db: db}
 }
 
-func (r *OrderRepository) CreateOrder(ctx context.Context, o entity.Order) (entity.Order, error) {
-	q := "INSERT INTO orders(customer_id, robot_model, robot_version, created_at) VALUES ($1, $2, $3, $4) RETURNING id"
+func (r *OrderRepository) CreateOrder(ctx context.Context, order entity.Order) error {
+	q := "INSERT INTO orders(customer_id, robot_model, robot_version, created_at) VALUES ($1, $2, $3, $4)"
 
-	err := r.db.QueryRowContext(ctx, q, o.CustomerID, o.Model, o.Version, o.CreatedAt).Scan(&o.ID)
-	if err != nil {
-		return entity.Order{}, err
-	}
-
-	return o, nil
-}
-
-func (r *OrderRepository) OrderWithDelay(ctx context.Context, o entity.Order) error {
-	q := "INSERT INTO delayed_order(customer_id, model, version) VALUES ($1, $2, $3)"
-
-	_, err := r.db.ExecContext(ctx, q, o.CustomerID, o.Model, o.Version)
+	_, err := r.db.ExecContext(ctx, q, order.CustomerID, order.Model, order.Version, order.CreatedAt)
 	if err != nil {
 		return err
 	}
@@ -36,31 +25,41 @@ func (r *OrderRepository) OrderWithDelay(ctx context.Context, o entity.Order) er
 	return nil
 }
 
-func (r *OrderRepository) DelayedOrders(ctx context.Context, model string, version string) (customers []int64, err error) {
-	q := "SELECT customer_id FROM delayed_order WHERE model = $1 AND version = $2"
+func (r *OrderRepository) DeleteOrderWithNotification(ctx context.Context, model, version string) ([]int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
 
-	rows, err := r.db.QueryContext(ctx, q, model, version)
+	q := "SELECT customer_id FROM orders WHERE robot_model = $1 AND robot_version = $2"
+
+	rows, err := tx.QueryContext(ctx, q, model, version)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	var id int64
+	var result []int64
+
 	for rows.Next() {
-		var id int64
 		rows.Scan(&id)
-		customers = append(customers, id)
+
+		result = append(result, id)
 	}
 
-	return customers, nil
-}
+	q = "DELETE FROM orders WHERE robot_model = $1 AND robot_version = $2"
 
-func (r *OrderRepository) RemoveDelayedOrder(ctx context.Context, customerID int64, model, version string) error {
-	q := "DELETE FROM delayed_order WHERE customer_id = $1 AND model = $2 AND version = $3"
-
-	_, err := r.db.ExecContext(ctx, q, customerID, model, version)
+	_, err = tx.ExecContext(ctx, q, model, version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

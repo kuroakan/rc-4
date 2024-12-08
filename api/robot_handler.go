@@ -30,15 +30,21 @@ func (h *RobotHandler) CreateRobot(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, "logger", h.logger)
 
-	robot := entity.Robot{}
+	rtc := entity.RobotToCreate{}
 
-	err := json.NewDecoder(r.Body).Decode(&robot)
+	err := json.NewDecoder(r.Body).Decode(&rtc)
 	if err != nil {
 		sendError(ctx, w, err)
 		return
 	}
 
-	robot, err = h.robot.CreateRobot(ctx, robot)
+	rob, err := entity.RobotCreateAPI(rtc)
+	if err != nil {
+		sendError(ctx, w, err)
+		return
+	}
+
+	robot, err := h.robot.CreateRobot(ctx, rob)
 	if err != nil {
 		sendError(ctx, w, err)
 		return

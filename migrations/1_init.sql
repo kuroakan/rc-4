@@ -22,15 +22,7 @@ CREATE TABLE robots(
     created_at timestamptz NOT NULL
 );
 
-CREATE TABLE delayed_order(
-    id BIGSERIAL PRIMARY KEY,
-    customer_id text NOT NULL,
-    model text NOT NULL,
-    version text NOT NULL
-);
-
 -- +goose Down
-DROP TABLE delayed_order;
 DROP TABLE robots;
 DROP TABLE orders;
 DROP TABLE customers;

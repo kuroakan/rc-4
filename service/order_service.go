@@ -8,9 +8,8 @@ import (
 )
 
 type OrderRepository interface {
-	CreateOrder(ctx context.Context, o entity.Order) (entity.Order, error)
-	OrderWithDelay(ctx context.Context, o entity.Order) error
-	DelayedOrders(ctx context.Context, model string, version string) (customers []int64, err error)
+	CreateOrder(ctx context.Context, order entity.Order) error
+	DeleteOrderWithNotification(ctx context.Context, model, version string) ([]int64, error)
 }
 
 type OrderService struct {
@@ -25,28 +24,22 @@ func NewOrderService(order OrderRepository, robot RobotRepository) *OrderService
 	}
 }
 
-func (s *OrderService) CreateOrder(ctx context.Context, order entity.Order) (entity.Order, error) {
+func (s *OrderService) CreateOrder(ctx context.Context, order entity.Order) (int64, error) {
 	quantity, err := s.robot.GetRobotQuantify(ctx, order.Model, order.Version)
 	if err != nil {
 		slog.Error("database error: %v", "error", err)
-		return entity.Order{}, err
+		return 0, err
 	}
 
 	if quantity == 0 {
-		err := s.order.OrderWithDelay(ctx, order)
+		order.CreatedAt = time.Now()
+
+		err = s.order.CreateOrder(ctx, order)
 		if err != nil {
 			slog.Error("database error: %v", "error", err)
-			return entity.Order{}, err
+			return 0, err
 		}
 	}
 
-	order.CreatedAt = time.Now()
-
-	order, err = s.order.CreateOrder(ctx, order)
-	if err != nil {
-		slog.Error("database error: %v", "error", err)
-		return entity.Order{}, err
-	}
-
-	return order, err
+	return quantity, err
 }

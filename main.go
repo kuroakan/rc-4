@@ -40,7 +40,7 @@ func main() {
 
 	orderService := service.NewOrderService(orderRepo, robotRepo)
 	customerService := service.NewCustomerService(customerRepo, robotRepo, orderRepo)
-	robotService := service.NewRobotService(robotRepo, orderRepo)
+	robotService := service.NewRobotService(robotRepo, orderRepo, customerRepo)
 
 	orderHandler := api.NewOrderHandler(logger, orderService)
 	customerHandler := api.NewCustomerHandler(logger, customerService)

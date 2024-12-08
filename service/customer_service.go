@@ -12,7 +12,7 @@ import (
 type CustomerRepository interface {
 	CreateCustomer(ctx context.Context, c entity.Customer) (entity.Customer, error)
 	CustomerByEmail(ctx context.Context, email string) (customer entity.Customer, err error)
-	CustomerByID(ctx context.Context, id int) (customer entity.Customer, err error)
+	CustomerByID(ctx context.Context, id int64) (customer entity.Customer, err error)
 }
 
 type CustomerService struct {

@@ -9,7 +9,7 @@ import (
 )
 
 type OrderService interface {
-	CreateOrder(ctx context.Context, order entity.Order) (entity.Order, error)
+	CreateOrder(ctx context.Context, order entity.Order) (int64, error)
 }
 
 type OrderHandler struct {
@@ -33,11 +33,11 @@ func (h *OrderHandler) OrderRobot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err = h.order.CreateOrder(ctx, order)
+	quan, err := h.order.CreateOrder(ctx, order)
 	if err != nil {
 		sendError(ctx, w, err)
 		return
 	}
 
-	sendResponse(w, order)
+	sendResponse(w, quan)
 }

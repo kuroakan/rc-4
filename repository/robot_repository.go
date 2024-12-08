@@ -17,7 +17,7 @@ func NewRobotRepository(db *sql.DB) *RobotRepository {
 func (r *RobotRepository) CreateRobot(ctx context.Context, robot entity.Robot) (entity.Robot, error) {
 	q := "INSERT INTO robots(model, version, created_at) VALUES ($1, $2, $3) RETURNING id"
 
-	err := r.db.QueryRowContext(ctx, q, robot.Model, robot.Version, robot.CreatedAt).Scan(&robot.ID)
+	err := r.db.QueryRowContext(ctx, q, robot.Model, robot.Version, robot.Created).Scan(&robot.ID)
 	if err != nil {
 		return entity.Robot{}, err
 	}

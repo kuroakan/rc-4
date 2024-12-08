@@ -36,7 +36,7 @@ func (r *CustomerRepository) CustomerByEmail(ctx context.Context, email string) 
 	return customer, nil
 }
 
-func (r *CustomerRepository) CustomerByID(ctx context.Context, id int) (customer entity.Customer, err error) {
+func (r *CustomerRepository) CustomerByID(ctx context.Context, id int64) (customer entity.Customer, err error) {
 	q := "SELECT id, name, email, created_at FROM customers WHERE id = $1"
 
 	err = r.db.QueryRowContext(ctx, q, id).Scan(&customer.ID, &customer.Name, &customer.Email, &customer.CreatedAt)
