@@ -25,41 +25,36 @@ func (r *OrderRepository) CreateOrder(ctx context.Context, order entity.Order) e
 	return nil
 }
 
-func (r *OrderRepository) DeleteOrderWithNotification(ctx context.Context, model, version string) ([]int64, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
+func (r *OrderRepository) Orders(ctx context.Context, model, version string) (orders []entity.Order, err error) {
+	q := "SELECT o.id, o.customer_id, o.robot_model, o.robot_version, o.created_at, c.email FROM orders o INNER JOIN customers c ON o.customer_id = c.id WHERE o.robot_model = $1 AND o.robot_version = $2"
 
-	q := "SELECT customer_id FROM orders WHERE robot_model = $1 AND robot_version = $2"
-
-	rows, err := tx.QueryContext(ctx, q, model, version)
+	rows, err := r.db.QueryContext(ctx, q, model, version)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var id int64
-	var result []int64
+	var order entity.Order
 
 	for rows.Next() {
-		rows.Scan(&id)
+		err = rows.Scan(&order.ID, &order.CustomerID, &order.Model, &order.Version, &order.CreatedAt, &order.CustomerEmail)
+		if err != nil {
+			return nil, err
+		}
 
-		result = append(result, id)
+		orders = append(orders, order)
 	}
 
-	q = "DELETE FROM orders WHERE robot_model = $1 AND robot_version = $2"
+	return orders, nil
+}
 
-	_, err = tx.ExecContext(ctx, q, model, version)
+func (r *OrderRepository) RemoveOrder(ctx context.Context, id int64) error {
+	q := "DELETE FROM orders WHERE id = $1"
+
+	_, err := r.db.ExecContext(ctx, q, id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return nil
 }

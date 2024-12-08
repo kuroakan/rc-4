@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,11 +27,17 @@ func NewRobotHandler(logger *slog.Logger, robot RobotService) *RobotHandler {
 	return &RobotHandler{logger: logger, robot: robot}
 }
 
+type CreateRobotRequest struct {
+	Model   string `json:"model"`
+	Version string `json:"version"`
+	Created string `json:"created"`
+}
+
 func (h *RobotHandler) CreateRobot(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, "logger", h.logger)
 
-	rtc := entity.RobotToCreate{}
+	var rtc CreateRobotRequest
 
 	err := json.NewDecoder(r.Body).Decode(&rtc)
 	if err != nil {
@@ -38,7 +45,7 @@ func (h *RobotHandler) CreateRobot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rob, err := entity.RobotCreateAPI(rtc)
+	rob, err := robotCreateAPI(rtc)
 	if err != nil {
 		sendError(ctx, w, err)
 		return
@@ -51,6 +58,41 @@ func (h *RobotHandler) CreateRobot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sendResponse(w, robot)
+}
+
+func robotCreateAPI(rtc CreateRobotRequest) (entity.Robot, error) {
+	const dateLayout = "2006-01-02 15:04:05"
+
+	t, err := time.Parse(dateLayout, rtc.Created)
+	if err != nil {
+		return entity.Robot{}, errors.New("invalid creation time")
+	}
+
+	robot := entity.Robot{
+		Model:   rtc.Model,
+		Version: rtc.Version,
+		Created: t,
+	}
+
+	if rtc.Model == "R2" {
+		switch rtc.Version {
+		case "D1", "D2", "D3", "D4":
+			return robot, nil
+		default:
+			return entity.Robot{}, errors.New("invalid version")
+		}
+	}
+
+	if rtc.Model == "13" {
+		switch rtc.Version {
+		case "X1", "X3", "X4", "X5":
+			return robot, nil
+		default:
+			return entity.Robot{}, errors.New("invalid version")
+		}
+	}
+
+	return entity.Robot{}, errors.New("invalid model")
 }
 
 func (h *RobotHandler) RobotsCreatedThisWeek(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +122,6 @@ func handleCSV(ctx context.Context, w http.ResponseWriter, counts map[string]map
 	}
 
 	for _, record := range data {
-		fmt.Println(record)
 		if err := csvWriter.Write(record); err != nil {
 			sendError(ctx, w, err)
 			return

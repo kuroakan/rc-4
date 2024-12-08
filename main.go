@@ -1,8 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"github.com/wneessen/go-mail"
 	"log/slog"
-	"net/http"
 	"os"
 	"testtask/api"
 	"testtask/bootstrap"
@@ -12,16 +13,11 @@ import (
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
 	cfg, err := bootstrap.NewConfig()
 	if err != nil {
 		logger.Error("Problem with config load: ", "error", err)
-		return
-	}
-
-	errorList := cfg.Validate()
-	if errorList != nil {
-		logger.Error("Config validation error ", "error", errorList)
 		return
 	}
 
@@ -34,19 +30,29 @@ func main() {
 
 	logger.Info("postgres DB connection status: OK")
 
+	client, err := mail.NewClient(cfg.Mail.Host, mail.WithPort(cfg.Mail.Port), mail.WithSMTPAuth(mail.SMTPAuthPlain),
+		mail.WithUsername(cfg.Mail.Username), mail.WithPassword(cfg.Mail.Password))
+	if err != nil {
+		logger.Error("Problem with mail client connection", "error", err)
+		return
+	}
+
 	orderRepo := repository.NewOrderRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
 	robotRepo := repository.NewRobotRepository(db)
 
+	mailService := service.NewEmailService(client, cfg.Mail.From)
 	orderService := service.NewOrderService(orderRepo, robotRepo)
 	customerService := service.NewCustomerService(customerRepo, robotRepo, orderRepo)
-	robotService := service.NewRobotService(robotRepo, orderRepo, customerRepo)
+	robotService := service.NewRobotService(robotRepo, orderService, mailService)
 
 	orderHandler := api.NewOrderHandler(logger, orderService)
 	customerHandler := api.NewCustomerHandler(logger, customerService)
 	robotHandler := api.NewRobotHandler(logger, robotService)
 
-	server := api.NewServer(cfg.HTTPPort, http.DefaultServeMux, customerHandler, orderHandler, robotHandler)
+	server := api.NewServer(cfg.HTTPPort, customerHandler, orderHandler, robotHandler)
+
+	logger.Info(fmt.Sprintf("Server is listening at port: %s", cfg.HTTPPort))
 
 	err = server.Start()
 	if err != nil {

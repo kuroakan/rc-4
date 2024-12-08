@@ -3,6 +3,7 @@ module testtask
 go 1.23.4
 
 require (
+	github.com/Netflix/go-env v0.1.2 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/wneessen/go-mail v0.5.2 // indirect

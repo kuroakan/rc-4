@@ -7,4 +7,5 @@ var (
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrForbidden    = errors.New("forbidden")
 	ErrBadRequest   = errors.New("bad request")
+	ErrAlreadyExist = errors.New("already exist")
 )

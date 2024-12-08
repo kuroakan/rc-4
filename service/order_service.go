@@ -9,7 +9,12 @@ import (
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order entity.Order) error
-	DeleteOrderWithNotification(ctx context.Context, model, version string) ([]int64, error)
+	Orders(ctx context.Context, model, version string) (orders []entity.Order, err error)
+	RemoveOrder(ctx context.Context, id int64) error
+}
+
+type Roboter interface {
+	GetRobotQuantity(ctx context.Context, model, version string) (int64, error)
 }
 
 type OrderService struct {
@@ -42,4 +47,17 @@ func (s *OrderService) CreateOrder(ctx context.Context, order entity.Order) (int
 	}
 
 	return quantity, err
+}
+
+func (s *OrderService) Orders(ctx context.Context, model, version string) ([]entity.Order, error) {
+	orders, err := s.order.Orders(ctx, model, version)
+	if err != nil {
+		return nil, err
+	}
+
+	return orders, nil
+}
+
+func (s *OrderService) RemoveOrder(ctx context.Context, id int64) error {
+	return s.order.RemoveOrder(ctx, id)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"testtask/entity"
 )
@@ -38,6 +39,7 @@ func sendError(ctx context.Context, w http.ResponseWriter, err error) {
 	err = json.NewEncoder(w).Encode(Error{Error: err.Error()})
 	if err != nil {
 		l.Error("API error", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
@@ -46,6 +48,7 @@ func sendResponse(w http.ResponseWriter, v any) {
 
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
+		slog.Error("encode response", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }

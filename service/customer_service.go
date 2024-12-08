@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"testtask/entity"
@@ -32,14 +31,11 @@ func NewCustomerService(customer CustomerRepository, robot RobotRepository, orde
 func (c *CustomerService) CreateCustomer(ctx context.Context, customer entity.Customer) (entity.Customer, error) {
 	_, err := c.customer.CustomerByEmail(ctx, customer.Email)
 	if err == nil {
-		return entity.Customer{}, fmt.Errorf("%w, email already taken", entity.ErrBadRequest)
-	} else {
-		switch {
-		case !errors.Is(err, sql.ErrNoRows):
-			return entity.Customer{}, err
-		case errors.Is(err, sql.ErrNoRows):
-			break
-		}
+		return entity.Customer{}, fmt.Errorf("customer with that email: %w", entity.ErrAlreadyExist)
+	}
+
+	if !errors.Is(err, entity.ErrNotFound) {
+		return entity.Customer{}, err
 	}
 
 	customer.CreatedAt = time.Now()

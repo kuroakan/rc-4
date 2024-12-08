@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testtask/entity"
 )
 
@@ -30,6 +31,10 @@ func (r *CustomerRepository) CustomerByEmail(ctx context.Context, email string) 
 
 	err = r.db.QueryRowContext(ctx, q, email).Scan(&customer.ID, &customer.Name, &customer.Email, &customer.CreatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return entity.Customer{}, entity.ErrNotFound
+		}
+
 		return entity.Customer{}, err
 	}
 

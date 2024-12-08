@@ -25,7 +25,7 @@ func (h *CustomerHandler) CreateCustomer(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, "logger", h.logger)
 
-	customer := entity.Customer{}
+	var customer entity.Customer
 	err := json.NewDecoder(r.Body).Decode(&customer)
 	if err != nil {
 		sendError(ctx, w, err)

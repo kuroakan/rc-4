@@ -2,10 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/wneessen/go-mail"
 	"log/slog"
-	"os"
 	"testtask/entity"
 )
 
@@ -15,14 +14,23 @@ type RobotRepository interface {
 	RobotsCreatedInAWeek(ctx context.Context) (map[string]map[string]int64, error)
 }
 
-type RobotService struct {
-	robot    RobotRepository
-	order    OrderRepository
-	customer CustomerRepository
+type Sender interface {
+	SendMail(email, text, subject string) error
 }
 
-func NewRobotService(robot RobotRepository, order OrderRepository, customer CustomerRepository) *RobotService {
-	return &RobotService{robot: robot, order: order, customer: customer}
+type Orderer interface {
+	Orders(ctx context.Context, model, version string) ([]entity.Order, error)
+	RemoveOrder(ctx context.Context, id int64) error
+}
+
+type RobotService struct {
+	robot  RobotRepository
+	order  Orderer
+	sender Sender
+}
+
+func NewRobotService(robot RobotRepository, order Orderer, sender Sender) *RobotService {
+	return &RobotService{robot: robot, order: order, sender: sender}
 }
 
 func (s *RobotService) CreateRobot(ctx context.Context, robot entity.Robot) (entity.Robot, error) {
@@ -40,24 +48,33 @@ func (s *RobotService) CreateRobot(ctx context.Context, robot entity.Robot) (ent
 }
 
 func (s *RobotService) sendMessageAboutRobotCreation(ctx context.Context, model string, version string) error {
-	ids, err := s.order.DeleteOrderWithNotification(ctx, model, version)
+	orders, err := s.order.Orders(ctx, model, version)
 	if err != nil {
-		return err
+		return fmt.Errorf("get orders: %w", err)
 	}
 
-	for _, id := range ids {
-		customer, err := s.customer.CustomerByID(ctx, id)
+	text := fmt.Sprintf(`Good afternoon!
+You recently inquired about our Model %s, Version %s robot.
+This robot is now in stock. If this option is suitable for you, please contact us`, model, version)
+
+	subject := "Update about your order!"
+
+	var errs []error
+
+	for _, order := range orders {
+		err := s.sender.SendMail(order.CustomerEmail, text, subject)
 		if err != nil {
-			return err
+			errs = append(errs, err)
+			continue
 		}
 
-		err = s.sendMail(customer.Email)
+		err = s.order.RemoveOrder(ctx, order.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("remove order %d: %w", order.ID, err)
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (s *RobotService) RobotsCreatedThisWeek(ctx context.Context) (map[string]map[string]int64, error) {
@@ -69,29 +86,6 @@ func (s *RobotService) RobotsCreatedThisWeek(ctx context.Context) (map[string]ma
 	return counts, nil
 }
 
-func (s *RobotService) sendMail(email string) error {
-	message := mail.NewMsg()
-	if err := message.From(os.Getenv("MAIL_ADDRESS")); err != nil {
-		return fmt.Errorf("failed to send From address: %s", err)
-	}
-
-	if err := message.To(email); err != nil {
-		return fmt.Errorf("failed to send To address: %s", err)
-	}
-
-	message.Subject("Update about your order!")
-
-	message.SetBodyString(mail.TypeTextPlain, "Good afternoon!\n"+
-		"You recently inquired about our Model X, Version Y robot. \n"+
-		"This robot is now in stock. If this option is suitable for you, please contact us")
-	client, err := mail.NewClient(os.Getenv("MAIL_HOST"), mail.WithSMTPAuth(mail.SMTPAuthPlain),
-		mail.WithUsername(os.Getenv("MAIL_USERNAME")), mail.WithPassword(os.Getenv("MAIL_PASSWORD")))
-	if err != nil {
-		return fmt.Errorf("failed to create mail client: %s", err)
-	}
-	if err := client.DialAndSend(message); err != nil {
-		return fmt.Errorf("failed to send mail: %s", err)
-	}
-
-	return nil
+func (s *RobotService) GetRobotQuantity(ctx context.Context, model, version string) (int64, error) {
+	return s.robot.GetRobotQuantify(ctx, model, version)
 }

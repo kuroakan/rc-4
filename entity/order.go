@@ -6,11 +6,12 @@ import (
 )
 
 type Order struct {
-	ID         int64     `json:"id"`
-	CustomerID int64     `json:"customer_id"`
-	Model      string    `json:"model"`
-	Version    string    `json:"version"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID            int64     `json:"id"`
+	CustomerID    int64     `json:"customer_id"`
+	CustomerEmail string    `json:"-"`
+	Model         string    `json:"model"`
+	Version       string    `json:"version"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 func (o *Order) Validate() error {

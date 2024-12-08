@@ -2,8 +2,12 @@ package entity
 
 import (
 	"errors"
+	"fmt"
 	"time"
+	"unicode/utf8"
 )
+
+const minNameLen = 4
 
 type Customer struct {
 	ID        int64     `json:"id"`
@@ -13,12 +17,12 @@ type Customer struct {
 }
 
 func (c *Customer) Validate() error {
-	if c.Name == "" || len(c.Name) < 4 {
-		return errors.New("name is too short")
+	if utf8.RuneCountInString(c.Name) < minNameLen {
+		return fmt.Errorf("name should be at least %d characters long", minNameLen)
 	}
 
 	if c.Email == "" {
-		return errors.New("email already taken")
+		return errors.New("empty email")
 	}
 
 	return nil

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -14,10 +13,10 @@ type Server struct {
 }
 
 // NewServer returns http router to work with.
-func NewServer(port string, router *http.ServeMux, customerHandler *CustomerHandler, orderHandler *OrderHandler, robotHandler *RobotHandler) *Server {
+func NewServer(port string, customerHandler *CustomerHandler, orderHandler *OrderHandler, robotHandler *RobotHandler) *Server {
 	return &Server{
 		port:            port,
-		router:          router,
+		router:          http.DefaultServeMux,
 		customerHandler: customerHandler,
 		orderHandler:    orderHandler,
 		robotHandler:    robotHandler}
@@ -38,8 +37,6 @@ func (s *Server) setRoutes() {
 
 func (s *Server) Start() error {
 	s.setRoutes()
-
-	fmt.Println("Server is listening... at port:", s.port)
 
 	return http.ListenAndServe(":"+s.port, nil)
 
