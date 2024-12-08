@@ -89,7 +89,7 @@ func (h *RobotHandler) sendScvFile(counts map[string]map[string]int64, w http.Re
 	for _, record := range data {
 		writeCSVRecord(writer, record)
 	}
-	// Flush the writer and check for any errors
+
 	writer.Flush()
 	if err := writer.Error(); err != nil {
 		fmt.Println("Error flushing CSV writer:", err)

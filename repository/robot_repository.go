@@ -37,7 +37,10 @@ func (r *RobotRepository) GetRobotQuantify(ctx context.Context, model string, ve
 }
 
 func (r *RobotRepository) RobotsCreatedInAWeek(ctx context.Context) (map[string]map[string]int64, error) {
-	q := "SELECT model, version from robots WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'"
+	q := ` 	SELECT model, version, COUNT(*) as count 
+ 			FROM robots 
+ 			WHERE created_at >= CURRENT_DATE - INTERVAL '7 days' 
+            GROUP BY model, version; `
 
 	rows, err := r.db.QueryContext(ctx, q)
 	if err != nil {
@@ -49,7 +52,9 @@ func (r *RobotRepository) RobotsCreatedInAWeek(ctx context.Context) (map[string]
 
 	for rows.Next() {
 		var model, version string
-		if err := rows.Scan(&model, &version); err != nil {
+		var count int64
+
+		if err := rows.Scan(&model, &version, &count); err != nil {
 			return nil, err
 		}
 
@@ -57,7 +62,7 @@ func (r *RobotRepository) RobotsCreatedInAWeek(ctx context.Context) (map[string]
 			counts[model] = make(map[string]int64)
 		}
 
-		counts[model][version]++
+		counts[model][version] = count
 	}
 
 	return counts, nil
