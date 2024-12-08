@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strconv"
 	"testtask/entity"
 )
@@ -63,21 +61,31 @@ func (h *RobotHandler) RobotsCreatedThisWeek(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	h.sendScvFile(counts, w, r)
+	handleCSV(ctx, w, counts)
 }
 
-func (h *RobotHandler) sendScvFile(counts map[string]map[string]int64, w http.ResponseWriter, r *http.Request) {
-	filename := "output.csv"
-	writer, file, err := createCSVWriter(filename)
-	if err != nil {
-		fmt.Println("Error creating CSV writer:", err)
+func handleCSV(ctx context.Context, w http.ResponseWriter, counts map[string]map[string]int64) {
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", "attachment; filename=weekly report.csv")
+
+	csvWriter := csv.NewWriter(w)
+
+	data := generateCSVData(counts)
+	for _, record := range data {
+		if err := csvWriter.Write(record); err != nil {
+			sendError(ctx, w, err)
+			return
+		}
+	}
+
+	csvWriter.Flush()
+	if err := csvWriter.Error(); err != nil {
+		sendError(ctx, w, err)
 		return
 	}
-	defer file.Close()
+}
 
-	headers := []string{"Model", "Version", "Week quantity"}
-	writeCSVRecord(writer, headers)
-
+func generateCSVData(counts map[string]map[string]int64) [][]string {
 	var data [][]string
 
 	for k, v := range counts {
@@ -85,35 +93,5 @@ func (h *RobotHandler) sendScvFile(counts map[string]map[string]int64, w http.Re
 			data = append(data, []string{k, k1, strconv.FormatInt(v1, 10)})
 		}
 	}
-
-	for _, record := range data {
-		writeCSVRecord(writer, record)
-	}
-
-	writer.Flush()
-	if err := writer.Error(); err != nil {
-		fmt.Println("Error flushing CSV writer:", err)
-	}
-
-	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"data.csv\"")
-
-	file.Seek(0, 0)
-	http.ServeFile(w, r, file.Name())
-}
-
-func createCSVWriter(filename string) (*csv.Writer, *os.File, error) {
-	f, err := os.Create(filename)
-	if err != nil {
-		return nil, nil, err
-	}
-	writer := csv.NewWriter(f)
-	return writer, f, nil
-}
-
-func writeCSVRecord(writer *csv.Writer, record []string) {
-	err := writer.Write(record)
-	if err != nil {
-		fmt.Println("Error writing record to CSV:", err)
-	}
+	return data
 }
