@@ -16,15 +16,11 @@ type CustomerRepository interface {
 
 type CustomerService struct {
 	customer CustomerRepository
-	robot    RobotRepository
-	order    OrderRepository
 }
 
-func NewCustomerService(customer CustomerRepository, robot RobotRepository, order OrderRepository) *CustomerService {
+func NewCustomerService(customer CustomerRepository) *CustomerService {
 	return &CustomerService{
 		customer: customer,
-		robot:    robot,
-		order:    order,
 	}
 }
 

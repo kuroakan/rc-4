@@ -9,6 +9,7 @@ import (
 	"testtask/bootstrap"
 	"testtask/repository"
 	"testtask/service"
+	"time"
 )
 
 func main() {
@@ -42,13 +43,22 @@ func main() {
 	robotRepo := repository.NewRobotRepository(db)
 
 	mailService := service.NewEmailService(client, cfg.Mail.From)
-	orderService := service.NewOrderService(orderRepo, robotRepo)
-	customerService := service.NewCustomerService(customerRepo, robotRepo, orderRepo)
-	robotService := service.NewRobotService(robotRepo, orderService, mailService)
+	robotService := service.NewRobotService(robotRepo)
+	orderService := service.NewOrderService(orderRepo, robotService)
+	customerService := service.NewCustomerService(customerRepo)
 
 	orderHandler := api.NewOrderHandler(logger, orderService)
 	customerHandler := api.NewCustomerHandler(logger, customerService)
 	robotHandler := api.NewRobotHandler(logger, robotService)
+
+	go func(sender SenderSv, ors OrderSv, rs RobotSv) {
+		for {
+			slog.Info("notifier started")
+			notifier(sender, ors, rs)
+
+			time.Sleep(time.Hour)
+		}
+	}(mailService, orderService, robotService)
 
 	server := api.NewServer(cfg.HTTPPort, customerHandler, orderHandler, robotHandler)
 

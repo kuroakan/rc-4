@@ -9,20 +9,23 @@ import (
 
 type OrderRepository interface {
 	CreateOrder(ctx context.Context, order entity.Order) error
-	Orders(ctx context.Context, model, version string) (orders []entity.Order, err error)
+	OrdersByModelVersion(ctx context.Context, model, version string) (orders []entity.Order, err error)
+	Orders(ctx context.Context) ([]entity.Order, error)
 	RemoveOrder(ctx context.Context, id int64) error
 }
 
-type Roboter interface {
+type RobotServ interface {
+	CreateRobot(ctx context.Context, robot entity.Robot) (entity.Robot, error)
+	RobotsCreatedThisWeek(ctx context.Context) (map[string]map[string]int64, error)
 	GetRobotQuantity(ctx context.Context, model, version string) (int64, error)
 }
 
 type OrderService struct {
 	order OrderRepository
-	robot RobotRepository
+	robot RobotServ
 }
 
-func NewOrderService(order OrderRepository, robot RobotRepository) *OrderService {
+func NewOrderService(order OrderRepository, robot RobotServ) *OrderService {
 	return &OrderService{
 		order: order,
 		robot: robot,
@@ -30,7 +33,7 @@ func NewOrderService(order OrderRepository, robot RobotRepository) *OrderService
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, order entity.Order) (int64, error) {
-	quantity, err := s.robot.GetRobotQuantify(ctx, order.Model, order.Version)
+	quantity, err := s.robot.GetRobotQuantity(ctx, order.Model, order.Version)
 	if err != nil {
 		slog.Error("database error: %v", "error", err)
 		return 0, err
@@ -49,8 +52,8 @@ func (s *OrderService) CreateOrder(ctx context.Context, order entity.Order) (int
 	return quantity, err
 }
 
-func (s *OrderService) Orders(ctx context.Context, model, version string) ([]entity.Order, error) {
-	orders, err := s.order.Orders(ctx, model, version)
+func (s *OrderService) OrdersByModelVersion(ctx context.Context, model, version string) ([]entity.Order, error) {
+	orders, err := s.order.OrdersByModelVersion(ctx, model, version)
 	if err != nil {
 		return nil, err
 	}
@@ -60,4 +63,8 @@ func (s *OrderService) Orders(ctx context.Context, model, version string) ([]ent
 
 func (s *OrderService) RemoveOrder(ctx context.Context, id int64) error {
 	return s.order.RemoveOrder(ctx, id)
+}
+
+func (s *OrderService) Orders(ctx context.Context) ([]entity.Order, error) {
+	return s.order.Orders(ctx)
 }
