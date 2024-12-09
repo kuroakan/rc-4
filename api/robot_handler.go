@@ -45,7 +45,7 @@ func (h *RobotHandler) CreateRobot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rob, err := robotCreateAPI(rtc)
+	rob, err := robotFromAPI(rtc)
 	if err != nil {
 		sendError(ctx, w, err)
 		return
@@ -60,7 +60,7 @@ func (h *RobotHandler) CreateRobot(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, robot)
 }
 
-func robotCreateAPI(rtc CreateRobotRequest) (entity.Robot, error) {
+func robotFromAPI(rtc CreateRobotRequest) (entity.Robot, error) {
 	const dateLayout = "2006-01-02 15:04:05"
 
 	t, err := time.Parse(dateLayout, rtc.Created)
@@ -105,34 +105,38 @@ func (h *RobotHandler) RobotsCreatedThisWeek(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	handleCSV(ctx, w, counts)
+	err = handleCSV(w, counts)
+	if err != nil {
+		sendError(ctx, w, err)
+		return
+	}
 }
 
-func handleCSV(ctx context.Context, w http.ResponseWriter, counts map[string]map[string]int64) {
+func handleCSV(w http.ResponseWriter, counts map[string]map[string]int64) error {
 	w.Header().Set("Content-Type", "text/csv")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=weekly report %s.csv", time.Now().Format("2006-01-02")))
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=weekly report %s.csv", time.Now().Format("2006-01-02")))
 
 	csvWriter := csv.NewWriter(w)
 
 	data := generateCSVData(counts)
 
 	if err := csvWriter.Write([]string{"Model", "Version", "Week Quantity"}); err != nil {
-		sendError(ctx, w, err)
-		return
+		return err
 	}
 
 	for _, record := range data {
 		if err := csvWriter.Write(record); err != nil {
-			sendError(ctx, w, err)
-			return
+			return err
 		}
 	}
 
 	csvWriter.Flush()
 	if err := csvWriter.Error(); err != nil {
-		sendError(ctx, w, err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 func generateCSVData(counts map[string]map[string]int64) [][]string {

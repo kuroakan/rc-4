@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testtask/entity"
 )
 
@@ -30,6 +31,10 @@ func (r *RobotRepository) GetRobotQuantify(ctx context.Context, model string, ve
 
 	err = r.db.QueryRowContext(ctx, q, model, version).Scan(&quantity)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
+
 		return 0, err
 	}
 
