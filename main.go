@@ -54,9 +54,14 @@ func main() {
 
 	go func() {
 		for {
-			slog.Info("notifier started")
-			notifierService.Notify()
-			time.Sleep(time.Hour)
+			slog.Info("notify job started")
+
+			err = notifierService.NotifyCustomers()
+			if err != nil {
+				slog.Error("notify", "error", err)
+			}
+
+			time.Sleep(time.Hour) //TODO заменить на ticker
 		}
 	}()
 

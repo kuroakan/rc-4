@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"testtask/entity"
 )
 
@@ -31,37 +30,31 @@ func NewNotifier(order OrderSv, sender SenderSv, robot RobotSv) *Notifier {
 	return &Notifier{order: order, sender: sender, robot: robot}
 }
 
-func (n *Notifier) Notify() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var errs []error
-
-	subject := "Update about your order!"
-	var text string
+func (n *Notifier) NotifyCustomers() error {
+	ctx := context.Background() //TODO gracefull shutdown
 
 	orders, err := n.order.Orders(ctx)
 	if err != nil {
-		slog.Error(fmt.Sprintf("notifier get order: %s", err), "error", err)
-		return
+		return fmt.Errorf("get order: %w", err)
 	}
+
+	var errs []error
 
 	for _, order := range orders {
 		quantity, err := n.robot.GetRobotQuantity(ctx, order.Model, order.Version)
 		if err != nil {
-			slog.Error(fmt.Sprintf("notifier get quantity: %s", err), "error", err)
-			return
+			return fmt.Errorf("get quantity: %w", err)
 		}
 
-		if quantity <= 1 {
+		if quantity == 0 {
 			continue
 		}
 
-		text = fmt.Sprintf(`Good afternoon!
+		text := fmt.Sprintf(`Good afternoon!
 You recently inquired about our Model %s, Version %s robot.
 This robot is now in stock. If this option is suitable for you, please contact us`, order.Model, order.Version)
 
-		err = n.sender.SendMail(order.CustomerEmail, text, subject)
+		err = n.sender.SendMail(order.CustomerEmail, text, "Update about your order!")
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -69,12 +62,8 @@ This robot is now in stock. If this option is suitable for you, please contact u
 
 		err = n.order.RemoveOrder(ctx, order.ID)
 		if err != nil {
-			slog.Error(fmt.Sprintf("notifier remove order: %s", err), "error", err)
-			return
+			return fmt.Errorf("remove order: %w", err)
 		}
 	}
-
-	if len(errs) > 0 {
-		slog.Error("notifier", "error", errors.Join(errs...))
-	}
+	return errors.Join(errs...)
 }
