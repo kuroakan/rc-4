@@ -46,19 +46,19 @@ func main() {
 	robotService := service.NewRobotService(robotRepo)
 	orderService := service.NewOrderService(orderRepo, robotService)
 	customerService := service.NewCustomerService(customerRepo)
+	notifierService := service.NewNotifier(orderService, mailService, robotService)
 
 	orderHandler := api.NewOrderHandler(logger, orderService)
 	customerHandler := api.NewCustomerHandler(logger, customerService)
 	robotHandler := api.NewRobotHandler(logger, robotService)
 
-	go func(sender SenderSv, ors OrderSv, rs RobotSv) {
+	go func() {
 		for {
 			slog.Info("notifier started")
-			notifier(sender, ors, rs)
-
+			notifierService.Notify()
 			time.Sleep(time.Hour)
 		}
-	}(mailService, orderService, robotService)
+	}()
 
 	server := api.NewServer(cfg.HTTPPort, customerHandler, orderHandler, robotHandler)
 

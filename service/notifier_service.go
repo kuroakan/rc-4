@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"context"
@@ -21,7 +21,17 @@ type RobotSv interface {
 	GetRobotQuantity(ctx context.Context, model, version string) (int64, error)
 }
 
-func notifier(sender SenderSv, ors OrderSv, rs RobotSv) {
+type Notifier struct {
+	order  OrderSv
+	sender SenderSv
+	robot  RobotSv
+}
+
+func NewNotifier(order OrderSv, sender SenderSv, robot RobotSv) *Notifier {
+	return &Notifier{order: order, sender: sender, robot: robot}
+}
+
+func (n *Notifier) Notify() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -30,14 +40,14 @@ func notifier(sender SenderSv, ors OrderSv, rs RobotSv) {
 	subject := "Update about your order!"
 	var text string
 
-	orders, err := ors.Orders(ctx)
+	orders, err := n.order.Orders(ctx)
 	if err != nil {
 		slog.Error(fmt.Sprintf("notifier get order: %s", err), "error", err)
 		return
 	}
 
 	for _, order := range orders {
-		quantity, err := rs.GetRobotQuantity(ctx, order.Model, order.Version)
+		quantity, err := n.robot.GetRobotQuantity(ctx, order.Model, order.Version)
 		if err != nil {
 			slog.Error(fmt.Sprintf("notifier get quantity: %s", err), "error", err)
 			return
@@ -51,13 +61,13 @@ func notifier(sender SenderSv, ors OrderSv, rs RobotSv) {
 You recently inquired about our Model %s, Version %s robot.
 This robot is now in stock. If this option is suitable for you, please contact us`, order.Model, order.Version)
 
-		err = sender.SendMail(order.CustomerEmail, text, subject)
+		err = n.sender.SendMail(order.CustomerEmail, text, subject)
 		if err != nil {
 			errs = append(errs, err)
 			continue
 		}
 
-		err = ors.RemoveOrder(ctx, order.ID)
+		err = n.order.RemoveOrder(ctx, order.ID)
 		if err != nil {
 			slog.Error(fmt.Sprintf("notifier remove order: %s", err), "error", err)
 			return
