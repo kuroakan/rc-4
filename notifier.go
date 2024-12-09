@@ -32,14 +32,14 @@ func notifier(sender SenderSv, ors OrderSv, rs RobotSv) {
 
 	orders, err := ors.Orders(ctx)
 	if err != nil {
-		slog.Error(fmt.Sprintf("notifier: %s", err), "error", err)
+		slog.Error(fmt.Sprintf("notifier get order: %s", err), "error", err)
 		return
 	}
 
 	for _, order := range orders {
 		quantity, err := rs.GetRobotQuantity(ctx, order.Model, order.Version)
 		if err != nil {
-			slog.Error(fmt.Sprintf("notifier: %s", err), "error", err)
+			slog.Error(fmt.Sprintf("notifier get quantity: %s", err), "error", err)
 			return
 		}
 
@@ -59,10 +59,11 @@ This robot is now in stock. If this option is suitable for you, please contact u
 
 		err = ors.RemoveOrder(ctx, order.ID)
 		if err != nil {
-			slog.Error(fmt.Sprintf("notifier: %s", err), "error", err)
+			slog.Error(fmt.Sprintf("notifier remove order: %s", err), "error", err)
 			return
 		}
 	}
+
 	if len(errs) > 0 {
 		slog.Error("notifier", "error", errors.Join(errs...))
 	}
